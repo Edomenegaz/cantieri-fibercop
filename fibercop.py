@@ -1,3 +1,5 @@
+from http import client
+from urllib import request
 from bs4 import BeautifulSoup
 from colorama import Fore, Style, init, deinit
 from os.path import exists as file_exists
@@ -6,8 +8,8 @@ import requests
 import re
 import json
 import datetime
-
-# TODO: Reverse Geocoding (ref: https://developers.google.com/maps/documentation/geocoding/requests-reverse-geocoding)
+import bigdatacloudapi
+import io
 
 init()
 current_time = datetime.datetime.now()
@@ -20,6 +22,12 @@ vecchi_cantieri = []
 cantieri = []
 cantieri_chiusi = []
 cantieri_nati = []
+
+api_key = ''
+
+with open("api_file.bin", encoding="utf-8") as binary_file:
+    # Read the whole file at once
+    api_key = str(binary_file.read())
 
 class Cantiere:
     def __init__(self, lat, lng):
@@ -71,6 +79,7 @@ def check_still_open():
             # cantiere chiuso
             cantieri_chiusi.append(vecchio_cantiere)
             print_colored("- lat:{} lng:{}".format(str(vecchio_cantiere.lat), str(vecchio_cantiere.lng)), Fore.RED)
+            reverse_geocoding(vecchio_cantiere)
 
 def check_new_opened():
     for nuovo_cantiere in cantieri:
@@ -78,6 +87,7 @@ def check_new_opened():
             # cantiere nuovo
             cantieri_nati.append(nuovo_cantiere)
             print_colored("+ lat:{} lng:{}".format(str(nuovo_cantiere.lat), str(nuovo_cantiere.lng)), Fore.GREEN)
+            reverse_geocoding(nuovo_cantiere)
 
 def get_last_log(logs):
     print('Getting last log...')
@@ -95,6 +105,9 @@ def log_results_to_file(path):
         f.write('{}\n'.format(cantiere_string))
     print('Created log file to path: ' + path)
 
+def reverse_geocoding(coordinates):
+    response = requests.get("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={}&longitude={}&localityLanguage=it".format(coordinates.lat, coordinates.lng)).json()
+    print(response['city'], ' - ', response['locality'])
 
 def main():
 
@@ -110,7 +123,7 @@ def main():
     check_still_open()
     check_new_opened()
     
-    print(logs)
+    # print(logs)
     output_path = LOGS_DIR + '{}.txt'.format(str(current_time)[:10])
 
     if file_exists(output_path):
@@ -129,7 +142,7 @@ def main():
         # create it
         log_results_to_file(output_path)
 
-    print('\n\n')
+    print('\n')
     deinit()
 
 if __name__ == "__main__":
